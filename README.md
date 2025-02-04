@@ -11,6 +11,14 @@ a simple cli tool for bumping semantic versions in various config file formats.
 ## usage
 
 ```bash
+# bumping
+svbump [LEVEL] [SELECTOR] [FILE]
+
+# reading
+svbump read [SELECTOR] [FILE]
+
+# examples
+
 # bump the patch version in package.json
 svbump patch version package.json
 
@@ -23,8 +31,9 @@ svbump major version app.yaml
 # set a specific version (must be higher than current)
 svbump 2.5.0 version package.json
 
-# read the current version without modifying
+# print the current version to stdout without modifying
 svbump read version package.json
+svbump read package.version Cargo.toml
 ```
 
 ## installation
@@ -39,14 +48,10 @@ brew install schpet/tap/svbump
 
 head on over to https://github.com/schpet/svbump/releases
 
-## development
+## similar tools
 
-run tests:
-```bash
-cargo test
-```
+### semver-bump
 
-build locally:
-```bash
-cargo build
-```
+https://github.com/ceejbot/semver-bump
+
+bumps a semver from stdin, can be composed with other stuff like [tomato for toml](https://github.com/ceejbot/tomato) to update files.
