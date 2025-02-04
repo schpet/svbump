@@ -2,5 +2,14 @@
 name = "svbump"
 version = "0.1.0"
 edition = "2021"
+license = "ISC"
 
 [dependencies]
+clap = { version = "4.5.2", features = ["derive"] }
+serde_json = "1.0.117"
+semver = "1.0.22"
+serde = "1.0.217"
+toml_edit = "0.22.23"
+anyhow = "1.0.81"
+tempfile = "3.10.0"
+serde_yaml = "0.9.31"
