@@ -36,7 +36,3 @@ build locally:
 ```bash
 cargo build
 ```
-
-## license
-
-mit
