@@ -70,7 +70,7 @@ fn main() -> Result<()> {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
             
-            let version = match get_file_type(path) {
+            let version = match get_file_type(path)? {
                 "toml" => {
                     let doc = content.parse::<DocumentMut>()?;
                     read_version_toml(&doc, &selector)?
@@ -95,7 +95,7 @@ fn main() -> Result<()> {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
 
-            match get_file_type(path) {
+            match get_file_type(path)? {
                 "toml" => {
                     let mut doc = content.parse::<DocumentMut>()?;
                     bump_version_toml(&mut doc, &selector, &level)?;
@@ -118,10 +118,17 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn get_file_type(path: &Path) -> &str {
-    path.extension()
+fn get_file_type(path: &Path) -> Result<&str> {
+    let ext = path.extension()
         .and_then(|e| e.to_str())
-        .unwrap_or("json")
+        .ok_or_else(|| anyhow::anyhow!("File has no extension"))?;
+    
+    match ext {
+        "json" => Ok("json"),
+        "yml" | "yaml" => Ok("yaml"),
+        "toml" => Ok("toml"),
+        _ => anyhow::bail!("Unsupported file extension: {}", ext)
+    }
 }
 
 fn bump_semver(version: &str, level: &VersionBump) -> Result<String> {
