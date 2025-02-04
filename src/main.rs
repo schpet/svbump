@@ -68,12 +68,12 @@ enum Command {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    
+
     match args.command {
         Some(Command::Read { selector, file }) => {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
-            
+
             let version = match get_file_type(path, args.file_type)? {
                 "toml" => {
                     let doc = content.parse::<DocumentMut>()?;
@@ -93,9 +93,15 @@ fn main() -> Result<()> {
         }
         None => {
             // Default to bump command
-            let level = args.level.ok_or_else(|| anyhow::anyhow!("Version bump level is required"))?;
-            let selector = args.selector.ok_or_else(|| anyhow::anyhow!("Selector is required"))?;
-            let file = args.file.ok_or_else(|| anyhow::anyhow!("File path is required"))?;
+            let level = args
+                .level
+                .ok_or_else(|| anyhow::anyhow!("Version bump level is required"))?;
+            let selector = args
+                .selector
+                .ok_or_else(|| anyhow::anyhow!("Selector is required"))?;
+            let file = args
+                .file
+                .ok_or_else(|| anyhow::anyhow!("File path is required"))?;
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
 
@@ -143,22 +149,23 @@ fn get_file_type<'a>(path: &Path, override_type: Option<FileType>) -> Result<&'a
     if let Some(typ) = override_type {
         Ok(typ.as_str())
     } else {
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .and_then(|e| e.to_str())
             .ok_or_else(|| anyhow::anyhow!("File has no extension"))?;
-        
+
         match ext {
             "json" => Ok("json"),
             "yml" | "yaml" => Ok("yaml"),
             "toml" => Ok("toml"),
-            _ => anyhow::bail!("Unsupported file extension: {}", ext)
+            _ => anyhow::bail!("Unsupported file extension: {}", ext),
         }
     }
 }
 
 fn bump_semver(version: &str, level: &VersionBump) -> Result<String> {
     let current = Version::parse(version)?;
-    
+
     let new_version = match level {
         VersionBump::Major => {
             let mut v = current.clone();
@@ -180,21 +187,24 @@ fn bump_semver(version: &str, level: &VersionBump) -> Result<String> {
         }
         VersionBump::Specific(target) => {
             if target <= &current {
-                anyhow::bail!("New version {} must be greater than current version {}", target, current);
+                anyhow::bail!(
+                    "New version {} must be greater than current version {}",
+                    target,
+                    current
+                );
             }
             target.clone()
         }
     };
 
     // Preserve any existing pre-release and build metadata
-    Ok(format!("{}.{}.{}", new_version.major, new_version.minor, new_version.patch))
+    Ok(format!(
+        "{}.{}.{}",
+        new_version.major, new_version.minor, new_version.patch
+    ))
 }
 
-fn bump_version_toml(
-    doc: &mut DocumentMut,
-    selector: &str,
-    level: &VersionBump,
-) -> Result<()> {
+fn bump_version_toml(doc: &mut DocumentMut, selector: &str, level: &VersionBump) -> Result<()> {
     let path_parts: Vec<&str> = selector.split('.').collect();
     let mut current = doc.as_table_mut();
 
@@ -216,7 +226,8 @@ fn bump_version_toml(
 
 fn walk_json_mut<'a>(value: &'a mut JsonValue, parts: &[&str]) -> Result<&'a mut JsonValue> {
     let part = parts[0];
-    let value = value.get_mut(part)
+    let value = value
+        .get_mut(part)
         .with_context(|| format!("Missing key: {}", part))?;
 
     if parts.len() == 1 {
@@ -238,7 +249,7 @@ mod tests {
             "name": "test-package",
             "version": "1.2.3"
         }"#;
-        
+
         let temp_file = NamedTempFile::new()?;
         fs::write(&temp_file, json_content)?;
 
@@ -252,8 +263,12 @@ mod tests {
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut value: JsonValue = serde_json::from_str(&content)?;
-        bump_version_json(&mut value, args.selector.as_ref().unwrap(), args.level.as_ref().unwrap())?;
-        
+        bump_version_json(
+            &mut value,
+            args.selector.as_ref().unwrap(),
+            args.level.as_ref().unwrap(),
+        )?;
+
         assert_eq!(value["version"], "1.2.4");
         Ok(())
     }
@@ -265,7 +280,7 @@ mod tests {
 name = "test-package"
 version = "1.2.3"
 "#;
-        
+
         let temp_file = NamedTempFile::new()?;
         fs::write(&temp_file, toml_content)?;
 
@@ -279,8 +294,12 @@ version = "1.2.3"
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut doc = content.parse::<DocumentMut>()?;
-        bump_version_toml(&mut doc, args.selector.as_ref().unwrap(), args.level.as_ref().unwrap())?;
-        
+        bump_version_toml(
+            &mut doc,
+            args.selector.as_ref().unwrap(),
+            args.level.as_ref().unwrap(),
+        )?;
+
         assert_eq!(doc["package"]["version"].as_str().unwrap(), "1.3.0");
         Ok(())
     }
@@ -291,7 +310,7 @@ version = "1.2.3"
             "name": "test-package",
             "version": "1.2.3"
         }"#;
-        
+
         let temp_file = NamedTempFile::new()?;
         fs::write(&temp_file, json_content)?;
 
@@ -306,7 +325,11 @@ version = "1.2.3"
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut value: JsonValue = serde_json::from_str(&content)?;
-        bump_version_json(&mut value, args.selector.as_ref().unwrap(), args.level.as_ref().unwrap())?;
+        bump_version_json(
+            &mut value,
+            args.selector.as_ref().unwrap(),
+            args.level.as_ref().unwrap(),
+        )?;
         assert_eq!(value["version"], "2.5.0");
 
         // Test that setting a lower version fails
@@ -318,9 +341,10 @@ version = "1.2.3"
             file_type: None,
         };
 
-        let result = bump_version_json(&mut value, 
-            args_lower.selector.as_ref().unwrap(), 
-            args_lower.level.as_ref().unwrap()
+        let result = bump_version_json(
+            &mut value,
+            args_lower.selector.as_ref().unwrap(),
+            args_lower.level.as_ref().unwrap(),
         );
         assert!(result.is_err());
         Ok(())
@@ -332,7 +356,7 @@ version = "1.2.3"
 name: test-package
 version: 1.2.3
 "#;
-        
+
         let temp_file = NamedTempFile::new()?;
         fs::write(&temp_file, yaml_content)?;
 
@@ -346,8 +370,12 @@ version: 1.2.3
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut value: YamlValue = serde_yaml::from_str(&content)?;
-        bump_version_yaml(&mut value, args.selector.as_ref().unwrap(), args.level.as_ref().unwrap())?;
-        
+        bump_version_yaml(
+            &mut value,
+            args.selector.as_ref().unwrap(),
+            args.level.as_ref().unwrap(),
+        )?;
+
         assert_eq!(value["version"].as_str().unwrap(), "2.0.0");
         Ok(())
     }
@@ -355,7 +383,8 @@ version: 1.2.3
 
 fn walk_yaml_mut<'a>(value: &'a mut YamlValue, parts: &[&str]) -> Result<&'a mut YamlValue> {
     let part = parts[0];
-    let value = value.get_mut(part)
+    let value = value
+        .get_mut(part)
         .with_context(|| format!("Missing key: {}", part))?;
 
     if parts.len() == 1 {
@@ -365,15 +394,12 @@ fn walk_yaml_mut<'a>(value: &'a mut YamlValue, parts: &[&str]) -> Result<&'a mut
     }
 }
 
-fn bump_version_yaml(
-    value: &mut YamlValue,
-    selector: &str,
-    bump: &VersionBump,
-) -> Result<()> {
+fn bump_version_yaml(value: &mut YamlValue, selector: &str, bump: &VersionBump) -> Result<()> {
     let parts: Vec<&str> = selector.split('.').collect();
     let target = walk_yaml_mut(value, &parts)?;
 
-    let version = target.as_str()
+    let version = target
+        .as_str()
         .with_context(|| format!("Version field is not a string at {}", selector))?;
 
     let new_version = bump_semver(version, bump)?;
@@ -381,15 +407,12 @@ fn bump_version_yaml(
     Ok(())
 }
 
-fn bump_version_json(
-    value: &mut JsonValue,
-    selector: &str,
-    bump: &VersionBump,
-) -> Result<()> {
+fn bump_version_json(value: &mut JsonValue, selector: &str, bump: &VersionBump) -> Result<()> {
     let parts: Vec<&str> = selector.split('.').collect();
     let target = walk_json_mut(value, &parts)?;
 
-    let version = target.as_str()
+    let version = target
+        .as_str()
         .with_context(|| format!("Version field is not a string at {}", selector))?;
 
     let new_version = bump_semver(version, bump)?;
@@ -398,7 +421,8 @@ fn bump_version_json(
 }
 fn walk_json<'a>(value: &'a JsonValue, parts: &[&str]) -> Result<&'a JsonValue> {
     let part = parts[0];
-    let value = value.get(part)
+    let value = value
+        .get(part)
         .with_context(|| format!("Missing key: {}", part))?;
 
     if parts.len() == 1 {
@@ -410,7 +434,8 @@ fn walk_json<'a>(value: &'a JsonValue, parts: &[&str]) -> Result<&'a JsonValue> 
 
 fn walk_yaml<'a>(value: &'a YamlValue, parts: &[&str]) -> Result<&'a YamlValue> {
     let part = parts[0];
-    let value = value.get(part)
+    let value = value
+        .get(part)
         .with_context(|| format!("Missing key: {}", part))?;
 
     if parts.len() == 1 {
@@ -424,7 +449,8 @@ fn read_version_json(value: &JsonValue, selector: &str) -> Result<String> {
     let parts: Vec<&str> = selector.split('.').collect();
     let target = walk_json(value, &parts)?;
 
-    target.as_str()
+    target
+        .as_str()
         .with_context(|| format!("Version field is not a string at {}", selector))
         .map(String::from)
 }
@@ -433,7 +459,8 @@ fn read_version_yaml(value: &YamlValue, selector: &str) -> Result<String> {
     let parts: Vec<&str> = selector.split('.').collect();
     let target = walk_yaml(value, &parts)?;
 
-    target.as_str()
+    target
+        .as_str()
         .with_context(|| format!("Version field is not a string at {}", selector))
         .map(String::from)
 }
@@ -443,13 +470,15 @@ fn read_version_toml(doc: &DocumentMut, selector: &str) -> Result<String> {
     let mut current = doc.as_table();
 
     for part in &path_parts[..path_parts.len() - 1] {
-        current = current.get(*part)
+        current = current
+            .get(*part)
             .and_then(|v| v.as_table())
             .with_context(|| format!("No table found at selector {}", part))?;
     }
 
     let last_part = path_parts.last().unwrap();
-    current.get(*last_part)
+    current
+        .get(*last_part)
         .and_then(|v| v.as_str())
         .with_context(|| format!("No string value found at {}", selector))
         .map(String::from)
