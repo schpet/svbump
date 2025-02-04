@@ -3,6 +3,10 @@ name = "svbump"
 version = "0.1.2"
 edition = "2021"
 license = "ISC"
+authors = ["Peter Schilling"]
+repository = "https://github.com/schpet/svbump"
+homepage = "https://github.com/schpet/svbump"
+description = "A cli for reading and incrementing semvers in JSON, TOML, and YAML files"
 
 [dependencies]
 clap = { version = "4.5.2", features = ["derive"] }
@@ -13,3 +17,8 @@ toml_edit = "0.22.23"
 anyhow = "1.0.81"
 tempfile = "3.10.0"
 serde_yaml = "0.9.31"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
