@@ -29,7 +29,15 @@ svbump read version package.json
 
 ## installation
 
-todo
+### homebrew
+
+```sh
+brew install schpet/tap/svbump
+```
+
+### binaries
+
+head on over to https://github.com/schpet/svbump/releases
 
 ## development
 
