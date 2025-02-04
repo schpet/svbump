@@ -247,6 +247,7 @@ mod tests {
             level: Some(VersionBump::Patch),
             selector: Some("version".to_string()),
             file: Some(temp_file.path().to_path_buf()),
+            file_type: None,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
@@ -273,6 +274,7 @@ version = "1.2.3"
             level: Some(VersionBump::Minor),
             selector: Some("package.version".to_string()),
             file: Some(temp_file.path().to_path_buf()),
+            file_type: None,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
@@ -299,6 +301,7 @@ version = "1.2.3"
             level: Some(VersionBump::Specific(Version::new(2, 5, 0))),
             selector: Some("version".to_string()),
             file: Some(temp_file.path().to_path_buf()),
+            file_type: None,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
@@ -312,6 +315,7 @@ version = "1.2.3"
             level: Some(VersionBump::Specific(Version::new(1, 0, 0))),
             selector: Some("version".to_string()),
             file: Some(temp_file.path().to_path_buf()),
+            file_type: None,
         };
 
         let result = bump_version_json(&mut value, 
@@ -337,6 +341,7 @@ version: 1.2.3
             level: Some(VersionBump::Major),
             selector: Some("version".to_string()),
             file: Some(temp_file.path().to_path_buf()),
+            file_type: None,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
