@@ -80,7 +80,8 @@ fn main() -> Result<()> {
                     read_version_yaml(&value, &selector)?
                 }
                 _ => {
-                    let value: JsonValue = serde_json::from_str(&content)?;
+                    let value: JsonValue = serde_json::from_str(&content)
+                        .context("Failed to parse JSON with preserved ordering")?;
                     read_version_json(&value, &selector)?
                 }
             };
