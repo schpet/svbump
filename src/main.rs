@@ -109,7 +109,7 @@ fn main() -> Result<()> {
                 _ => {
                     let mut value: JsonValue = serde_json::from_str(&content)?;
                     bump_version_json(&mut value, &selector, &level)?;
-                    fs::write(path, serde_json::to_string_pretty(&value)?)?;
+                    fs::write(path, format!("{}\n", serde_json::to_string_pretty(&value)?))?;
                 }
             }
         }
