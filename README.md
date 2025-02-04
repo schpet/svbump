@@ -19,6 +19,12 @@ svbump minor package.version Cargo.toml
 
 # bump the major version in a yaml file
 svbump major version app.yaml
+
+# set a specific version (must be higher than current)
+svbump 2.5.0 version package.json
+
+# read the current version without modifying
+svbump read version package.json
 ```
 
 ## installation
