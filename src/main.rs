@@ -48,6 +48,10 @@ struct Args {
 
     /// Path to the file to process
     file: Option<PathBuf>,
+
+    /// Force specific file type (json, yaml, toml)
+    #[arg(short = 't', long = "type")]
+    file_type: Option<String>,
 }
 
 #[derive(clap::Subcommand)]
@@ -70,7 +74,7 @@ fn main() -> Result<()> {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
             
-            let version = match get_file_type(path)? {
+            let version = match get_file_type(path, args.file_type.as_deref())? {
                 "toml" => {
                     let doc = content.parse::<DocumentMut>()?;
                     read_version_toml(&doc, &selector)?
@@ -95,7 +99,7 @@ fn main() -> Result<()> {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
 
-            match get_file_type(path)? {
+            match get_file_type(path, args.file_type.as_deref())? {
                 "toml" => {
                     let mut doc = content.parse::<DocumentMut>()?;
                     bump_version_toml(&mut doc, &selector, &level)?;
@@ -118,16 +122,23 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn get_file_type(path: &Path) -> Result<&str> {
-    let ext = path.extension()
-        .and_then(|e| e.to_str())
-        .ok_or_else(|| anyhow::anyhow!("File has no extension"))?;
-    
-    match ext {
-        "json" => Ok("json"),
-        "yml" | "yaml" => Ok("yaml"),
-        "toml" => Ok("toml"),
-        _ => anyhow::bail!("Unsupported file extension: {}", ext)
+fn get_file_type<'a>(path: &Path, override_type: Option<&'a str>) -> Result<&'a str> {
+    if let Some(typ) = override_type {
+        match typ {
+            "json" | "yaml" | "yml" | "toml" => Ok(typ),
+            _ => anyhow::bail!("Unsupported file type: {}", typ)
+        }
+    } else {
+        let ext = path.extension()
+            .and_then(|e| e.to_str())
+            .ok_or_else(|| anyhow::anyhow!("File has no extension"))?;
+        
+        match ext {
+            "json" => Ok("json"),
+            "yml" | "yaml" => Ok("yaml"),
+            "toml" => Ok("toml"),
+            _ => anyhow::bail!("Unsupported file extension: {}", ext)
+        }
     }
 }
 
