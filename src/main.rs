@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use semver::Version;
 use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
@@ -9,11 +9,28 @@ use std::{
 };
 use toml_edit::{DocumentMut, Item, Value as TomlValue};
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone)]
 enum VersionBump {
     Major,
     Minor,
     Patch,
+    Specific(Version),
+}
+
+impl std::str::FromStr for VersionBump {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "major" => Ok(VersionBump::Major),
+            "minor" => Ok(VersionBump::Minor),
+            "patch" => Ok(VersionBump::Patch),
+            version => {
+                let new_version = Version::parse(version)?;
+                Ok(VersionBump::Specific(new_version))
+            }
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -23,7 +40,7 @@ struct Args {
     command: Option<Command>,
 
     /// Version segment to update (major, minor, patch)
-    #[arg(value_enum)]
+    #[arg(value_parser = clap::value_parser!(VersionBump))]
     level: Option<VersionBump>,
 
     /// Field selector using dot notation (e.g. "package.version")
@@ -107,23 +124,37 @@ fn get_file_type(path: &Path) -> &str {
 }
 
 fn bump_semver(version: &str, level: &VersionBump) -> Result<String> {
-    let mut v = Version::parse(version)?;
-
-    match level {
+    let current = Version::parse(version)?;
+    
+    let new_version = match level {
         VersionBump::Major => {
+            let mut v = current.clone();
             v.major += 1;
             v.minor = 0;
             v.patch = 0;
+            v
         }
         VersionBump::Minor => {
+            let mut v = current.clone();
             v.minor += 1;
             v.patch = 0;
+            v
         }
-        VersionBump::Patch => v.patch += 1,
-    }
+        VersionBump::Patch => {
+            let mut v = current.clone();
+            v.patch += 1;
+            v
+        }
+        VersionBump::Specific(target) => {
+            if target <= &current {
+                anyhow::bail!("New version {} must be greater than current version {}", target, current);
+            }
+            target.clone()
+        }
+    };
 
     // Preserve any existing pre-release and build metadata
-    Ok(format!("{}.{}.{}", v.major, v.minor, v.patch))
+    Ok(format!("{}.{}.{}", new_version.major, new_version.minor, new_version.patch))
 }
 
 fn bump_version_toml(
@@ -216,6 +247,45 @@ version = "1.2.3"
         bump_version_toml(&mut doc, args.selector.as_ref().unwrap(), args.level.as_ref().unwrap())?;
         
         assert_eq!(doc["package"]["version"].as_str().unwrap(), "1.3.0");
+        Ok(())
+    }
+
+    #[test]
+    fn test_specific_version_bump() -> Result<()> {
+        let json_content = r#"{
+            "name": "test-package",
+            "version": "1.2.3"
+        }"#;
+        
+        let temp_file = NamedTempFile::new()?;
+        fs::write(&temp_file, json_content)?;
+
+        // Test setting a valid higher version
+        let args = Args {
+            command: None,
+            level: Some(VersionBump::Specific(Version::new(2, 5, 0))),
+            selector: Some("version".to_string()),
+            file: Some(temp_file.path().to_path_buf()),
+        };
+
+        let content = fs::read_to_string(temp_file.path())?;
+        let mut value: JsonValue = serde_json::from_str(&content)?;
+        bump_version_json(&mut value, args.selector.as_ref().unwrap(), args.level.as_ref().unwrap())?;
+        assert_eq!(value["version"], "2.5.0");
+
+        // Test that setting a lower version fails
+        let args_lower = Args {
+            command: None,
+            level: Some(VersionBump::Specific(Version::new(1, 0, 0))),
+            selector: Some("version".to_string()),
+            file: Some(temp_file.path().to_path_buf()),
+        };
+
+        let result = bump_version_json(&mut value, 
+            args_lower.selector.as_ref().unwrap(), 
+            args_lower.level.as_ref().unwrap()
+        );
+        assert!(result.is_err());
         Ok(())
     }
 
