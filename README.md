@@ -10,15 +10,13 @@ a simple cli tool for bumping semantic versions in various config file formats.
 
 ## usage
 
-```bash
-# bumping
-svbump [LEVEL] [SELECTOR] [FILE]
+```sh
+svbump [LEVEL] [SELECTOR] [FILE] # bumping
+svbump read [SELECTOR] [FILE]    # reading
+```
+### examples
 
-# reading
-svbump read [SELECTOR] [FILE]
-
-# examples
-
+```sh
 # bump the patch version in package.json
 svbump patch version package.json
 
@@ -46,7 +44,7 @@ brew install schpet/tap/svbump
 
 ### binaries
 
-head on over to https://github.com/schpet/svbump/releases
+head on over to https://github.com/schpet/svbump/releases/latest
 
 ## similar tools
 
