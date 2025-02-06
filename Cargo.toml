@@ -6,7 +6,7 @@ license = "ISC"
 authors = ["Peter Schilling"]
 repository = "https://github.com/schpet/svbump"
 homepage = "https://github.com/schpet/svbump"
-description = "A cli for reading and incrementing semvers in JSON, TOML, and YAML files"
+description = "CLI for reading and incrementing semvers in JSON, TOML, and YAML files"
 
 [dependencies]
 clap = { version = "4.5.2", features = ["derive"] }
