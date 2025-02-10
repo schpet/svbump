@@ -127,7 +127,7 @@ fn main() -> Result<()> {
             };
 
             let new_version = bump_semver(&current_version, &level)?;
-            println!("{} -> {}", current_version, new_version);
+            println!("{}", new_version);
         }
         None => {
             // Default to bump command
@@ -160,7 +160,7 @@ fn main() -> Result<()> {
                 };
 
                 let new_version = bump_semver(&current_version, &level)?;
-                println!("{} -> {}", current_version, new_version);
+                println!("{}", new_version);
             } else {
                 match get_file_type(path, args.file_type)? {
                     "toml" => {
