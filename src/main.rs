@@ -37,25 +37,11 @@ impl std::str::FromStr for VersionBump {
 #[command(version, about)]
 struct Args {
     #[command(subcommand)]
-    command: Option<Command>,
-
-    /// Version segment to update (major, minor, patch)
-    #[arg(value_parser = clap::value_parser!(VersionBump))]
-    level: Option<VersionBump>,
-
-    /// Field selector using dot notation (e.g. "package.version")
-    selector: Option<String>,
-
-    /// Path to the file to process
-    file: Option<PathBuf>,
+    command: Command,
 
     /// Force specific file type
     #[arg(short = 't', long = "type", value_enum)]
     file_type: Option<FileType>,
-
-    /// Preview the version bump without making changes
-    #[arg(long, short = 'p')]
-    preview: bool,
 }
 
 #[derive(clap::Subcommand)]
@@ -68,8 +54,8 @@ enum Command {
         /// Path to the file to process
         file: PathBuf,
     },
-    /// Preview version bump without making changes
-    Preview {
+    /// Write new version
+    Write {
         /// Version segment to update (major, minor, patch)
         #[arg(value_parser = clap::value_parser!(VersionBump))]
         level: VersionBump,
@@ -79,6 +65,10 @@ enum Command {
 
         /// Path to the file to process
         file: PathBuf,
+
+        /// Preview the version bump without making changes
+        #[arg(long, short = 'p')]
+        preview: bool,
     },
 }
 
@@ -86,7 +76,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     match args.command {
-        Some(Command::Read { selector, file }) => {
+        Command::Read { selector, file } => {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
 
@@ -107,43 +97,11 @@ fn main() -> Result<()> {
             };
             println!("{}", version);
         }
-        Some(Command::Preview { level, selector, file }) => {
+        Command::Write { level, selector, file, preview } => {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
             
-            let current_version = match get_file_type(path, args.file_type)? {
-                "toml" => {
-                    let doc = content.parse::<DocumentMut>()?;
-                    read_version_toml(&doc, &selector)?
-                }
-                "yml" | "yaml" => {
-                    let value: YamlValue = serde_yaml::from_str(&content)?;
-                    read_version_yaml(&value, &selector)?
-                }
-                _ => {
-                    let value: JsonValue = serde_json::from_str(&content)?;
-                    read_version_json(&value, &selector)?
-                }
-            };
-
-            let new_version = bump_semver(&current_version, &level)?;
-            println!("{}", new_version);
-        }
-        None => {
-            // Default to bump command
-            let level = args
-                .level
-                .ok_or_else(|| anyhow::anyhow!("Version bump level is required"))?;
-            let selector = args
-                .selector
-                .ok_or_else(|| anyhow::anyhow!("Selector is required"))?;
-            let file = args
-                .file
-                .ok_or_else(|| anyhow::anyhow!("File path is required"))?;
-            let path = file.as_path();
-            let content = fs::read_to_string(path)?;
-
-            if args.preview {
+            if preview {
                 let current_version = match get_file_type(path, args.file_type)? {
                     "toml" => {
                         let doc = content.parse::<DocumentMut>()?;
