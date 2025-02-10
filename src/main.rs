@@ -52,12 +52,28 @@ struct Args {
     /// Force specific file type
     #[arg(short = 't', long = "type", value_enum)]
     file_type: Option<FileType>,
+
+    /// Preview the version bump without making changes
+    #[arg(long, short = 'p')]
+    preview: bool,
 }
 
 #[derive(clap::Subcommand)]
 enum Command {
     /// Read current version
     Read {
+        /// Field selector using dot notation (e.g. "package.version")
+        selector: String,
+
+        /// Path to the file to process
+        file: PathBuf,
+    },
+    /// Preview version bump without making changes
+    Preview {
+        /// Version segment to update (major, minor, patch)
+        #[arg(value_parser = clap::value_parser!(VersionBump))]
+        level: VersionBump,
+
         /// Field selector using dot notation (e.g. "package.version")
         selector: String,
 
@@ -91,6 +107,28 @@ fn main() -> Result<()> {
             };
             println!("{}", version);
         }
+        Some(Command::Preview { level, selector, file }) => {
+            let path = file.as_path();
+            let content = fs::read_to_string(path)?;
+            
+            let current_version = match get_file_type(path, args.file_type)? {
+                "toml" => {
+                    let doc = content.parse::<DocumentMut>()?;
+                    read_version_toml(&doc, &selector)?
+                }
+                "yml" | "yaml" => {
+                    let value: YamlValue = serde_yaml::from_str(&content)?;
+                    read_version_yaml(&value, &selector)?
+                }
+                _ => {
+                    let value: JsonValue = serde_json::from_str(&content)?;
+                    read_version_json(&value, &selector)?
+                }
+            };
+
+            let new_version = bump_semver(&current_version, &level)?;
+            println!("{} -> {}", current_version, new_version);
+        }
         None => {
             // Default to bump command
             let level = args
@@ -105,21 +143,41 @@ fn main() -> Result<()> {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
 
-            match get_file_type(path, args.file_type)? {
-                "toml" => {
-                    let mut doc = content.parse::<DocumentMut>()?;
-                    bump_version_toml(&mut doc, &selector, &level)?;
-                    fs::write(path, doc.to_string())?;
-                }
-                "yml" | "yaml" => {
-                    let mut value: YamlValue = serde_yaml::from_str(&content)?;
-                    bump_version_yaml(&mut value, &selector, &level)?;
-                    fs::write(path, serde_yaml::to_string(&value)?)?;
-                }
-                _ => {
-                    let mut value: JsonValue = serde_json::from_str(&content)?;
-                    bump_version_json(&mut value, &selector, &level)?;
-                    fs::write(path, format!("{}\n", serde_json::to_string_pretty(&value)?))?;
+            if args.preview {
+                let current_version = match get_file_type(path, args.file_type)? {
+                    "toml" => {
+                        let doc = content.parse::<DocumentMut>()?;
+                        read_version_toml(&doc, &selector)?
+                    }
+                    "yml" | "yaml" => {
+                        let value: YamlValue = serde_yaml::from_str(&content)?;
+                        read_version_yaml(&value, &selector)?
+                    }
+                    _ => {
+                        let value: JsonValue = serde_json::from_str(&content)?;
+                        read_version_json(&value, &selector)?
+                    }
+                };
+
+                let new_version = bump_semver(&current_version, &level)?;
+                println!("{} -> {}", current_version, new_version);
+            } else {
+                match get_file_type(path, args.file_type)? {
+                    "toml" => {
+                        let mut doc = content.parse::<DocumentMut>()?;
+                        bump_version_toml(&mut doc, &selector, &level)?;
+                        fs::write(path, doc.to_string())?;
+                    }
+                    "yml" | "yaml" => {
+                        let mut value: YamlValue = serde_yaml::from_str(&content)?;
+                        bump_version_yaml(&mut value, &selector, &level)?;
+                        fs::write(path, serde_yaml::to_string(&value)?)?;
+                    }
+                    _ => {
+                        let mut value: JsonValue = serde_json::from_str(&content)?;
+                        bump_version_json(&mut value, &selector, &level)?;
+                        fs::write(path, format!("{}\n", serde_json::to_string_pretty(&value)?))?;
+                    }
                 }
             }
         }
