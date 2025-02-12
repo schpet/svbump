@@ -279,12 +279,12 @@ mod tests {
         fs::write(&temp_file, json_content)?;
 
         let args = Args {
-            command: None,
-            level: Some(VersionBump::Patch),
-            selector: Some("version".to_string()),
-            file: Some(temp_file.path().to_path_buf()),
+            command: Command::Write {
+                level: VersionBump::Patch,
+                selector: "version".to_string(),
+                file: temp_file.path().to_path_buf(),
+            },
             file_type: None,
-            preview: false,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
@@ -311,12 +311,12 @@ version = "1.2.3"
         fs::write(&temp_file, toml_content)?;
 
         let args = Args {
-            command: None,
-            level: Some(VersionBump::Minor),
-            selector: Some("package.version".to_string()),
-            file: Some(temp_file.path().to_path_buf()),
+            command: Command::Write {
+                level: VersionBump::Minor,
+                selector: "package.version".to_string(),
+                file: temp_file.path().to_path_buf(),
+            },
             file_type: None,
-            preview: false,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
@@ -343,32 +343,29 @@ version = "1.2.3"
 
         // Test setting a valid higher version
         let args = Args {
-            command: None,
-            level: Some(VersionBump::Specific(Version::new(2, 5, 0))),
-            selector: Some("version".to_string()),
-            file: Some(temp_file.path().to_path_buf()),
+            command: Command::Write {
+                level: VersionBump::Specific(Version::new(2, 5, 0)),
+                selector: "version".to_string(),
+                file: temp_file.path().to_path_buf(),
+            },
             file_type: None,
-            preview: false,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut value: JsonValue = serde_json::from_str(&content)?;
         bump_version_json(
             &mut value,
-            args.selector.as_ref().unwrap(),
-            args.level.as_ref().unwrap(),
+            "version",
+            &VersionBump::Specific(Version::new(2, 5, 0)),
         )?;
         assert_eq!(value["version"], "2.5.0");
 
         // Test that setting a lower version fails
-        let args_lower = Args {
-            command: None,
-            level: Some(VersionBump::Specific(Version::new(1, 0, 0))),
-            selector: Some("version".to_string()),
-            file: Some(temp_file.path().to_path_buf()),
-            file_type: None,
-            preview: false,
-        };
+        let result = bump_version_json(
+            &mut value,
+            "version",
+            &VersionBump::Specific(Version::new(1, 0, 0)),
+        );
 
         let result = bump_version_json(
             &mut value,
@@ -390,12 +387,12 @@ version: 1.2.3
         fs::write(&temp_file, yaml_content)?;
 
         let args = Args {
-            command: None,
-            level: Some(VersionBump::Major),
-            selector: Some("version".to_string()),
-            file: Some(temp_file.path().to_path_buf()),
+            command: Command::Write {
+                level: VersionBump::Major,
+                selector: "version".to_string(),
+                file: temp_file.path().to_path_buf(),
+            },
             file_type: None,
-            preview: false,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
