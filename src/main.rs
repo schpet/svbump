@@ -289,11 +289,9 @@ mod tests {
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut value: JsonValue = serde_json::from_str(&content)?;
-        bump_version_json(
-            &mut value,
-            args.selector.as_ref().unwrap(),
-            args.level.as_ref().unwrap(),
-        )?;
+        if let Command::Write { level, selector, .. } = &args.command {
+            bump_version_json(&mut value, &selector, level)?;
+        }
 
         assert_eq!(value["version"], "1.2.4");
         Ok(())
@@ -321,11 +319,9 @@ version = "1.2.3"
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut doc = content.parse::<DocumentMut>()?;
-        bump_version_toml(
-            &mut doc,
-            args.selector.as_ref().unwrap(),
-            args.level.as_ref().unwrap(),
-        )?;
+        if let Command::Write { level, selector, .. } = &args.command {
+            bump_version_toml(&mut doc, &selector, level)?;
+        }
 
         assert_eq!(doc["package"]["version"].as_str().unwrap(), "1.3.0");
         Ok(())
@@ -367,11 +363,6 @@ version = "1.2.3"
             &VersionBump::Specific(Version::new(1, 0, 0)),
         );
 
-        let result = bump_version_json(
-            &mut value,
-            args_lower.selector.as_ref().unwrap(),
-            args_lower.level.as_ref().unwrap(),
-        );
         assert!(result.is_err());
         Ok(())
     }
@@ -397,11 +388,9 @@ version: 1.2.3
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut value: YamlValue = serde_yaml::from_str(&content)?;
-        bump_version_yaml(
-            &mut value,
-            args.selector.as_ref().unwrap(),
-            args.level.as_ref().unwrap(),
-        )?;
+        if let Command::Write { level, selector, .. } = &args.command {
+            bump_version_yaml(&mut value, &selector, level)?;
+        }
 
         assert_eq!(value["version"].as_str().unwrap(), "2.0.0");
         Ok(())
