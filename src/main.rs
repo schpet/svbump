@@ -130,22 +130,21 @@ fn main() -> Result<()> {
         Command::Write { level, selector, file } => {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
-                match get_file_type(path, args.file_type)? {
-                    "toml" => {
-                        let mut doc = content.parse::<DocumentMut>()?;
-                        bump_version_toml(&mut doc, &selector, &level)?;
-                        fs::write(path, doc.to_string())?;
-                    }
-                    "yml" | "yaml" => {
-                        let mut value: YamlValue = serde_yaml::from_str(&content)?;
-                        bump_version_yaml(&mut value, &selector, &level)?;
-                        fs::write(path, serde_yaml::to_string(&value)?)?;
-                    }
-                    _ => {
-                        let mut value: JsonValue = serde_json::from_str(&content)?;
-                        bump_version_json(&mut value, &selector, &level)?;
-                        fs::write(path, format!("{}\n", serde_json::to_string_pretty(&value)?))?;
-                    }
+            match get_file_type(path, args.file_type)? {
+                "toml" => {
+                    let mut doc = content.parse::<DocumentMut>()?;
+                    bump_version_toml(&mut doc, &selector, &level)?;
+                    fs::write(path, doc.to_string())?;
+                }
+                "yml" | "yaml" => {
+                    let mut value: YamlValue = serde_yaml::from_str(&content)?;
+                    bump_version_yaml(&mut value, &selector, &level)?;
+                    fs::write(path, serde_yaml::to_string(&value)?)?;
+                }
+                _ => {
+                    let mut value: JsonValue = serde_json::from_str(&content)?;
+                    bump_version_json(&mut value, &selector, &level)?;
+                    fs::write(path, format!("{}\n", serde_json::to_string_pretty(&value)?))?;
                 }
             }
         }
