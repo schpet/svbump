@@ -65,10 +65,18 @@ enum Command {
 
         /// Path to the file to process
         file: PathBuf,
+    },
+    /// Preview version bump without making changes
+    Preview {
+        /// Version segment to update (major, minor, patch)
+        #[arg(value_parser = clap::value_parser!(VersionBump))]
+        level: VersionBump,
 
-        /// Preview the version bump without making changes
-        #[arg(long, short = 'p')]
-        preview: bool,
+        /// Field selector using dot notation (e.g. "package.version")
+        selector: String,
+
+        /// Path to the file to process
+        file: PathBuf,
     },
 }
 
@@ -97,29 +105,31 @@ fn main() -> Result<()> {
             };
             println!("{}", version);
         }
-        Command::Write { level, selector, file, preview } => {
+        Command::Preview { level, selector, file } => {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
             
-            if preview {
-                let current_version = match get_file_type(path, args.file_type)? {
-                    "toml" => {
-                        let doc = content.parse::<DocumentMut>()?;
-                        read_version_toml(&doc, &selector)?
-                    }
-                    "yml" | "yaml" => {
-                        let value: YamlValue = serde_yaml::from_str(&content)?;
-                        read_version_yaml(&value, &selector)?
-                    }
-                    _ => {
-                        let value: JsonValue = serde_json::from_str(&content)?;
-                        read_version_json(&value, &selector)?
-                    }
-                };
+            let current_version = match get_file_type(path, args.file_type)? {
+                "toml" => {
+                    let doc = content.parse::<DocumentMut>()?;
+                    read_version_toml(&doc, &selector)?
+                }
+                "yml" | "yaml" => {
+                    let value: YamlValue = serde_yaml::from_str(&content)?;
+                    read_version_yaml(&value, &selector)?
+                }
+                _ => {
+                    let value: JsonValue = serde_json::from_str(&content)?;
+                    read_version_json(&value, &selector)?
+                }
+            };
 
-                let new_version = bump_semver(&current_version, &level)?;
-                println!("{}", new_version);
-            } else {
+            let new_version = bump_semver(&current_version, &level)?;
+            println!("{}", new_version);
+        }
+        Command::Write { level, selector, file } => {
+            let path = file.as_path();
+            let content = fs::read_to_string(path)?;
                 match get_file_type(path, args.file_type)? {
                     "toml" => {
                         let mut doc = content.parse::<DocumentMut>()?;
