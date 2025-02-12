@@ -337,16 +337,6 @@ version = "1.2.3"
         let temp_file = NamedTempFile::new()?;
         fs::write(&temp_file, json_content)?;
 
-        // Test setting a valid higher version
-        let args = Args {
-            command: Command::Write {
-                level: VersionBump::Specific(Version::new(2, 5, 0)),
-                selector: "version".to_string(),
-                file: temp_file.path().to_path_buf(),
-            },
-            file_type: None,
-        };
-
         let content = fs::read_to_string(temp_file.path())?;
         let mut value: JsonValue = serde_json::from_str(&content)?;
         bump_version_json(
