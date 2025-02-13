@@ -37,31 +37,29 @@ impl std::str::FromStr for VersionBump {
 #[command(version, about)]
 struct Args {
     #[command(subcommand)]
-    command: Option<Command>,
-
-    /// Version segment to update (major, minor, patch)
-    #[arg(value_parser = clap::value_parser!(VersionBump))]
-    level: Option<VersionBump>,
-
-    /// Field selector using dot notation (e.g. "package.version")
-    selector: Option<String>,
-
-    /// Path to the file to process
-    file: Option<PathBuf>,
+    command: Command,
 
     /// Force specific file type
     #[arg(short = 't', long = "type", value_enum)]
     file_type: Option<FileType>,
-
-    /// Preview the version bump without making changes
-    #[arg(long, short = 'p')]
-    preview: bool,
 }
 
 #[derive(clap::Subcommand)]
 enum Command {
     /// Read current version
     Read {
+        /// Field selector using dot notation (e.g. "package.version")
+        selector: String,
+
+        /// Path to the file to process
+        file: PathBuf,
+    },
+    /// Write new version
+    Write {
+        /// Version segment to update (major, minor, patch)
+        #[arg(value_parser = clap::value_parser!(VersionBump))]
+        level: VersionBump,
+
         /// Field selector using dot notation (e.g. "package.version")
         selector: String,
 
@@ -86,7 +84,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     match args.command {
-        Some(Command::Read { selector, file }) => {
+        Command::Read { selector, file } => {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
 
@@ -107,7 +105,7 @@ fn main() -> Result<()> {
             };
             println!("{}", version);
         }
-        Some(Command::Preview { level, selector, file }) => {
+        Command::Preview { level, selector, file } => {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
             
@@ -129,55 +127,24 @@ fn main() -> Result<()> {
             let new_version = bump_semver(&current_version, &level)?;
             println!("{}", new_version);
         }
-        None => {
-            // Default to bump command
-            let level = args
-                .level
-                .ok_or_else(|| anyhow::anyhow!("Version bump level is required"))?;
-            let selector = args
-                .selector
-                .ok_or_else(|| anyhow::anyhow!("Selector is required"))?;
-            let file = args
-                .file
-                .ok_or_else(|| anyhow::anyhow!("File path is required"))?;
+        Command::Write { level, selector, file } => {
             let path = file.as_path();
             let content = fs::read_to_string(path)?;
-
-            if args.preview {
-                let current_version = match get_file_type(path, args.file_type)? {
-                    "toml" => {
-                        let doc = content.parse::<DocumentMut>()?;
-                        read_version_toml(&doc, &selector)?
-                    }
-                    "yml" | "yaml" => {
-                        let value: YamlValue = serde_yaml::from_str(&content)?;
-                        read_version_yaml(&value, &selector)?
-                    }
-                    _ => {
-                        let value: JsonValue = serde_json::from_str(&content)?;
-                        read_version_json(&value, &selector)?
-                    }
-                };
-
-                let new_version = bump_semver(&current_version, &level)?;
-                println!("{}", new_version);
-            } else {
-                match get_file_type(path, args.file_type)? {
-                    "toml" => {
-                        let mut doc = content.parse::<DocumentMut>()?;
-                        bump_version_toml(&mut doc, &selector, &level)?;
-                        fs::write(path, doc.to_string())?;
-                    }
-                    "yml" | "yaml" => {
-                        let mut value: YamlValue = serde_yaml::from_str(&content)?;
-                        bump_version_yaml(&mut value, &selector, &level)?;
-                        fs::write(path, serde_yaml::to_string(&value)?)?;
-                    }
-                    _ => {
-                        let mut value: JsonValue = serde_json::from_str(&content)?;
-                        bump_version_json(&mut value, &selector, &level)?;
-                        fs::write(path, format!("{}\n", serde_json::to_string_pretty(&value)?))?;
-                    }
+            match get_file_type(path, args.file_type)? {
+                "toml" => {
+                    let mut doc = content.parse::<DocumentMut>()?;
+                    bump_version_toml(&mut doc, &selector, &level)?;
+                    fs::write(path, doc.to_string())?;
+                }
+                "yml" | "yaml" => {
+                    let mut value: YamlValue = serde_yaml::from_str(&content)?;
+                    bump_version_yaml(&mut value, &selector, &level)?;
+                    fs::write(path, serde_yaml::to_string(&value)?)?;
+                }
+                _ => {
+                    let mut value: JsonValue = serde_json::from_str(&content)?;
+                    bump_version_json(&mut value, &selector, &level)?;
+                    fs::write(path, format!("{}\n", serde_json::to_string_pretty(&value)?))?;
                 }
             }
         }
@@ -312,21 +279,19 @@ mod tests {
         fs::write(&temp_file, json_content)?;
 
         let args = Args {
-            command: None,
-            level: Some(VersionBump::Patch),
-            selector: Some("version".to_string()),
-            file: Some(temp_file.path().to_path_buf()),
+            command: Command::Write {
+                level: VersionBump::Patch,
+                selector: "version".to_string(),
+                file: temp_file.path().to_path_buf(),
+            },
             file_type: None,
-            preview: false,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut value: JsonValue = serde_json::from_str(&content)?;
-        bump_version_json(
-            &mut value,
-            args.selector.as_ref().unwrap(),
-            args.level.as_ref().unwrap(),
-        )?;
+        if let Command::Write { level, selector, .. } = &args.command {
+            bump_version_json(&mut value, &selector, level)?;
+        }
 
         assert_eq!(value["version"], "1.2.4");
         Ok(())
@@ -344,21 +309,19 @@ version = "1.2.3"
         fs::write(&temp_file, toml_content)?;
 
         let args = Args {
-            command: None,
-            level: Some(VersionBump::Minor),
-            selector: Some("package.version".to_string()),
-            file: Some(temp_file.path().to_path_buf()),
+            command: Command::Write {
+                level: VersionBump::Minor,
+                selector: "package.version".to_string(),
+                file: temp_file.path().to_path_buf(),
+            },
             file_type: None,
-            preview: false,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut doc = content.parse::<DocumentMut>()?;
-        bump_version_toml(
-            &mut doc,
-            args.selector.as_ref().unwrap(),
-            args.level.as_ref().unwrap(),
-        )?;
+        if let Command::Write { level, selector, .. } = &args.command {
+            bump_version_toml(&mut doc, &selector, level)?;
+        }
 
         assert_eq!(doc["package"]["version"].as_str().unwrap(), "1.3.0");
         Ok(())
@@ -374,40 +337,22 @@ version = "1.2.3"
         let temp_file = NamedTempFile::new()?;
         fs::write(&temp_file, json_content)?;
 
-        // Test setting a valid higher version
-        let args = Args {
-            command: None,
-            level: Some(VersionBump::Specific(Version::new(2, 5, 0))),
-            selector: Some("version".to_string()),
-            file: Some(temp_file.path().to_path_buf()),
-            file_type: None,
-            preview: false,
-        };
-
         let content = fs::read_to_string(temp_file.path())?;
         let mut value: JsonValue = serde_json::from_str(&content)?;
         bump_version_json(
             &mut value,
-            args.selector.as_ref().unwrap(),
-            args.level.as_ref().unwrap(),
+            "version",
+            &VersionBump::Specific(Version::new(2, 5, 0)),
         )?;
         assert_eq!(value["version"], "2.5.0");
 
         // Test that setting a lower version fails
-        let args_lower = Args {
-            command: None,
-            level: Some(VersionBump::Specific(Version::new(1, 0, 0))),
-            selector: Some("version".to_string()),
-            file: Some(temp_file.path().to_path_buf()),
-            file_type: None,
-            preview: false,
-        };
-
         let result = bump_version_json(
             &mut value,
-            args_lower.selector.as_ref().unwrap(),
-            args_lower.level.as_ref().unwrap(),
+            "version",
+            &VersionBump::Specific(Version::new(1, 0, 0)),
         );
+
         assert!(result.is_err());
         Ok(())
     }
@@ -423,21 +368,19 @@ version: 1.2.3
         fs::write(&temp_file, yaml_content)?;
 
         let args = Args {
-            command: None,
-            level: Some(VersionBump::Major),
-            selector: Some("version".to_string()),
-            file: Some(temp_file.path().to_path_buf()),
+            command: Command::Write {
+                level: VersionBump::Major,
+                selector: "version".to_string(),
+                file: temp_file.path().to_path_buf(),
+            },
             file_type: None,
-            preview: false,
         };
 
         let content = fs::read_to_string(temp_file.path())?;
         let mut value: YamlValue = serde_yaml::from_str(&content)?;
-        bump_version_yaml(
-            &mut value,
-            args.selector.as_ref().unwrap(),
-            args.level.as_ref().unwrap(),
-        )?;
+        if let Command::Write { level, selector, .. } = &args.command {
+            bump_version_yaml(&mut value, &selector, level)?;
+        }
 
         assert_eq!(value["version"].as_str().unwrap(), "2.0.0");
         Ok(())
