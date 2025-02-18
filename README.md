@@ -11,25 +11,30 @@ a simple cli tool for bumping semantic versions in various config file formats.
 ## usage
 
 ```sh
-svbump [LEVEL] [SELECTOR] [FILE] # bumping
-svbump read [SELECTOR] [FILE]    # reading
+svbump write [LEVEL] [SELECTOR] [FILE]   # modify version
+svbump read [SELECTOR] [FILE]            # read version
+svbump preview [LEVEL] [SELECTOR] [FILE] # preview change
 ```
+
 ### examples
 
 ```sh
 # bump the patch version in package.json
-svbump patch version package.json
+svbump write patch version package.json
 
 # bump the minor version in a nested field
-svbump minor package.version Cargo.toml
+svbump write minor package.version Cargo.toml
 
 # bump the major version in a yaml file
-svbump major version app.yaml
+svbump write major version app.yaml
 
 # set a specific version (must be higher than current)
-svbump 2.5.0 version package.json
+svbump write 2.5.0 version package.json
 
-# print the current version to stdout without modifying
+# preview what a bump would do without modifying
+svbump preview minor version package.json
+
+# print the current version to stdout
 svbump read version package.json
 svbump read package.version Cargo.toml
 ```
