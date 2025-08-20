@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- dont raise an error if the same version is bumped
+
 ## [1.0.0] - 2025-02-17
 
 ### Changed

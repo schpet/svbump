@@ -1,7 +1,7 @@
 default:
     @just -l -u
 
-# release a major, minor or patch version
+# release the latest version in the changelog
 tag:
     svbump write "$(changelog version latest)" package.version Cargo.toml
     cargo check

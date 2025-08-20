@@ -211,12 +211,15 @@ fn bump_semver(version: &str, level: &VersionBump) -> Result<String> {
             v
         }
         VersionBump::Specific(target) => {
-            if target <= &current {
+            if target < &current {
                 anyhow::bail!(
                     "New version {} must be greater than current version {}",
                     target,
                     current
                 );
+            }
+            if target == &current {
+                println!("Version not changed (already at {})", current);
             }
             target.clone()
         }
